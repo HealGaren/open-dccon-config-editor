@@ -20,28 +20,22 @@ export function imageUrl(repo: RepoInfo, filename: string, branch = "master"): s
   return `${cdnBase(repo, branch)}/images/dccon/${encodeURIComponent(filename)}`;
 }
 
-interface JsDelivrFile {
-  name: string;
-}
-
-interface JsDelivrDirectory {
-  files: JsDelivrFile[];
-}
-
 export async function fetchImageList(
   repo: RepoInfo,
-  _token?: string,
+  token?: string,
   branch = "master"
 ): Promise<string[]> {
-  const url = `https://data.jsdelivr.com/v1/packages/gh/${repo.owner}/${repo.repo}@${branch}/flat`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`jsDelivr API error: ${res.status} ${res.statusText}`);
+  const url = `https://api.github.com/repos/${repo.owner}/${repo.repo}/contents/images/dccon?ref=${branch}`;
+  const headers: Record<string, string> = { Accept: "application/vnd.github.v3+json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const data: JsDelivrDirectory = await res.json();
-  const prefix = "/images/dccon/";
-  return data.files
-    .filter((f) => f.name.startsWith(prefix) && /\.(gif|png|jpg|jpeg|webp)$/i.test(f.name))
-    .map((f) => f.name.slice(prefix.length));
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+
+  const data: { name: string; type: string }[] = await res.json();
+  return data
+    .filter((f) => f.type === "file" && /\.(gif|png|jpg|jpeg|webp)$/i.test(f.name))
+    .map((f) => f.name);
 }
 
 export async function fetchDcconListJs(
