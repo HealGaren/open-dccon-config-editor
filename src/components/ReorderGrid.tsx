@@ -15,7 +15,6 @@ import {
   arrayMove,
   useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import type { DcconEntry, RepoInfo } from "../types";
 import { imageUrl } from "../utils/github";
 
@@ -47,16 +46,12 @@ function GridItem({
     attributes,
     listeners,
     setNodeRef,
-    transform,
-    transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, animateLayoutChanges: () => false });
 
   const style = isDragOverlay
     ? {}
     : {
-        transform: CSS.Transform.toString(transform),
-        transition,
         opacity: isDragging ? 0.3 : 1,
       };
 
