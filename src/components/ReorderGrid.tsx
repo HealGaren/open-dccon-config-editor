@@ -47,13 +47,15 @@ function GridItem({
     listeners,
     setNodeRef,
     transform,
+    transition,
     isDragging,
-  } = useSortable({ id, animateLayoutChanges: () => false });
+  } = useSortable({ id });
 
   const style = isDragOverlay
     ? {}
     : {
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        transition,
         opacity: isDragging ? 0.3 : 1,
       };
 
@@ -217,7 +219,7 @@ export function ReorderGrid({ entries, repo, onChange, onClose }: Props) {
               ))}
             </div>
           </SortableContext>
-          <DragOverlay>
+          <DragOverlay dropAnimation={null}>
             {draggingEntry && (
               <GridItem
                 id="overlay"
