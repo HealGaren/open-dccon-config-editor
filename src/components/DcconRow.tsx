@@ -1,15 +1,22 @@
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { DcconEntry, RepoInfo } from "../types";
 import { imageUrl } from "../utils/github";
 import { TagChips } from "./TagChips";
+import { Checkbox } from "./ui/checkbox";
+import { Badge } from "./ui/badge";
 
 interface Props {
   id: string;
   entry: DcconEntry;
   repo: RepoInfo;
-  branch: string;
+  compact: boolean;
   isMissingFile: boolean;
+  isSelected: boolean;
+  isFocused: boolean;
+  onToggleSelect: () => void;
+  onFocus: () => void;
   onChange: (entry: DcconEntry) => void;
   onDelete: () => void;
   sortDisabled: boolean;
@@ -19,8 +26,12 @@ export function DcconRow({
   id,
   entry,
   repo,
-  branch,
+  compact,
   isMissingFile,
+  isSelected,
+  isFocused,
+  onToggleSelect,
+  onFocus,
   onChange,
   onDelete,
   sortDisabled,
@@ -30,58 +41,110 @@ export function DcconRow({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id, disabled: sortDisabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? undefined : "none",
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const thumbSize = compact ? 40 : 80;
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`table-row ${isMissingFile ? "row-missing" : ""}`}
+      onClick={onToggleSelect}
+      className={`
+        group grid items-center gap-0 border-b border-border cursor-pointer transition-colors
+        ${compact
+          ? "grid-cols-[28px_52px_140px_1fr_1fr_32px_36px]"
+          : "grid-cols-[28px_92px_160px_1fr_1fr_32px_36px]"}
+        ${isMissingFile ? "bg-destructive/5" : ""}
+        ${isSelected ? "bg-primary/5" : ""}
+        ${isFocused ? "bg-accent" : ""}
+        hover:bg-accent/50
+      `}
     >
-      <div className="col-handle" {...attributes} {...listeners}>
+      {/* Drag handle */}
+      <div
+        className="flex items-center justify-center h-full text-muted-foreground text-xs cursor-grab select-none"
+        {...attributes}
+        {...listeners}
+      >
         {sortDisabled ? "" : "⠿"}
       </div>
-      <div className="col-thumb">
-        {isMissingFile ? (
-          <div className="thumb-missing">?</div>
+
+      {/* Thumbnail */}
+      <div
+        className="flex items-center justify-center py-1"
+        onClick={(e) => { e.stopPropagation(); onFocus(); }}
+      >
+        {isMissingFile || imgError ? (
+          <div
+            className="flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground text-[10px] text-center p-1 leading-tight"
+            style={{ width: thumbSize, height: thumbSize }}
+          >
+            {entry.name.replace(/\.\w+$/, "")}
+          </div>
         ) : (
           <img
-            src={imageUrl(repo, entry.name, branch)}
+            src={imageUrl(repo, entry.name)}
             alt={entry.name}
             loading="lazy"
+            onError={() => setImgError(true)}
+            className="rounded object-contain bg-white/5"
+            style={{ width: thumbSize, height: thumbSize }}
           />
         )}
       </div>
-      <div className="col-name" title={entry.name}>
-        {entry.name}
-        {isMissingFile && <span className="badge-missing">파일 없음</span>}
+
+      {/* Filename */}
+      <div
+        className="px-2 py-1 text-xs truncate border-r border-border"
+        title={entry.name}
+        onClick={(e) => { e.stopPropagation(); onFocus(); }}
+      >
+        <span className="text-foreground">{entry.name}</span>
+        {isMissingFile && <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">파일 없음</Badge>}
       </div>
-      <div className="col-keywords">
+
+      {/* Keywords */}
+      <div className="px-2 py-1 border-r border-border" onClick={(e) => e.stopPropagation()}>
         <TagChips
           values={entry.keywords}
           onChange={(keywords) => onChange({ ...entry, keywords })}
-          placeholder="키워드 추가"
+          placeholder="키워드"
+          variant="outline"
         />
       </div>
-      <div className="col-tags">
+
+      {/* Tags */}
+      <div className="px-2 py-1 border-r border-border" onClick={(e) => e.stopPropagation()}>
         <TagChips
           values={entry.tags}
           onChange={(tags) => onChange({ ...entry, tags })}
-          placeholder="태그 추가"
+          placeholder="태그"
+          variant="secondary"
         />
       </div>
-      <div className="col-actions">
-        <button className="btn-delete" onClick={onDelete} title="삭제">
+
+      {/* Delete */}
+      <div className="flex items-center justify-center">
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-lg"
+        >
           &times;
         </button>
+      </div>
+
+      {/* Checkbox */}
+      <div className="flex items-center justify-center h-full">
+        <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect()} />
       </div>
     </div>
   );

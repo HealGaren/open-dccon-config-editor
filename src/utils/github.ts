@@ -12,12 +12,12 @@ export function parseRepoUrl(url: string): RepoInfo | null {
   return null;
 }
 
-function cdnBase(repo: RepoInfo, branch: string): string {
-  return `https://cdn.jsdelivr.net/gh/${repo.owner}/${repo.repo}@${branch}`;
+function cdnBase(repo: RepoInfo): string {
+  return `https://cdn.jsdelivr.net/gh/${repo.owner}/${repo.repo}`;
 }
 
-export function imageUrl(repo: RepoInfo, filename: string, branch = "master"): string {
-  return `${cdnBase(repo, branch)}/images/dccon/${encodeURIComponent(filename)}`;
+export function imageUrl(repo: RepoInfo, filename: string): string {
+  return `${cdnBase(repo)}/images/dccon/${encodeURIComponent(filename)}`;
 }
 
 export async function fetchImageList(
@@ -41,9 +41,9 @@ export async function fetchImageList(
 export async function fetchDcconListJs(
   repo: RepoInfo,
   _token?: string,
-  branch = "master"
+  _branch = "master"
 ): Promise<string> {
-  const url = `${cdnBase(repo, branch)}/lib/dccon_list.js`;
+  const url = `${cdnBase(repo)}/lib/dccon_list.js`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`dccon_list.js를 불러올 수 없습니다: ${res.status}`);
   return res.text();

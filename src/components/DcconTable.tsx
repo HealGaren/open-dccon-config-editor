@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -12,9 +12,14 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DcconEntry, RepoInfo } from "../types";
 import { DcconRow } from "./DcconRow";
 import { imageUrl } from "../utils/github";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Checkbox } from "./ui/checkbox";
 
 type FilterMode = "all" | "unmapped" | "missing";
 
@@ -26,10 +31,20 @@ interface Props {
   onChange: (entries: DcconEntry[]) => void;
 }
 
-export function DcconTable({ entries, imageFiles, repo, branch, onChange }: Props) {
+const ROW_HEIGHT_NORMAL = 96;
+const ROW_HEIGHT_COMPACT = 52;
+
+export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [selectedTag, setSelectedTag] = useState<string>("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [batchTag, setBatchTag] = useState("");
+  const [compact, setCompact] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const rowHeight = compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_NORMAL;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -37,42 +52,39 @@ export function DcconTable({ entries, imageFiles, repo, branch, onChange }: Prop
 
   const mappedNames = useMemo(() => new Set(entries.map((e) => e.name)), [entries]);
   const fileSet = useMemo(() => new Set(imageFiles), [imageFiles]);
-
-  const unmappedFiles = useMemo(
-    () => imageFiles.filter((f) => !mappedNames.has(f)),
-    [imageFiles, mappedNames]
-  );
-  const missingFiles = useMemo(
-    () => entries.filter((e) => !fileSet.has(e.name)),
-    [entries, fileSet]
-  );
+  const unmappedFiles = useMemo(() => imageFiles.filter((f) => !mappedNames.has(f)), [imageFiles, mappedNames]);
+  const missingFiles = useMemo(() => entries.filter((e) => !fileSet.has(e.name)), [entries, fileSet]);
 
   const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    entries.forEach((e) => e.tags.forEach((t) => tagSet.add(t)));
-    return Array.from(tagSet).sort();
+    const s = new Set<string>();
+    entries.forEach((e) => e.tags.forEach((t) => s.add(t)));
+    return Array.from(s).sort();
   }, [entries]);
 
   const filteredEntries = useMemo(() => {
     let result = entries.map((e, i) => ({ entry: e, originalIndex: i }));
     if (filterMode === "unmapped") return [];
-    if (filterMode === "missing") {
-      result = result.filter(({ entry }) => !fileSet.has(entry.name));
-    }
-    if (selectedTag) {
-      result = result.filter(({ entry }) => entry.tags.includes(selectedTag));
-    }
+    if (filterMode === "missing") result = result.filter(({ entry }) => !fileSet.has(entry.name));
+    if (selectedTag) result = result.filter(({ entry }) => entry.tags.includes(selectedTag));
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter(
-        ({ entry }) =>
-          entry.name.toLowerCase().includes(q) ||
-          entry.keywords.some((k) => k.toLowerCase().includes(q)) ||
-          entry.tags.some((t) => t.toLowerCase().includes(q))
+      result = result.filter(({ entry }) =>
+        entry.name.toLowerCase().includes(q) ||
+        entry.keywords.some((k) => k.toLowerCase().includes(q)) ||
+        entry.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
     return result;
   }, [entries, search, filterMode, selectedTag, fileSet]);
+
+  const virtualizer = useVirtualizer({
+    count: filteredEntries.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 10,
+  });
+
+  const focusedEntry = focusedIndex !== null && focusedIndex < entries.length ? entries[focusedIndex] : null;
 
   function updateEntry(index: number, updated: DcconEntry) {
     const next = [...entries];
@@ -82,20 +94,16 @@ export function DcconTable({ entries, imageFiles, repo, branch, onChange }: Prop
 
   function deleteEntry(index: number) {
     onChange(entries.filter((_, i) => i !== index));
+    setSelected((prev) => { const s = new Set(prev); s.delete(index); return s; });
+    if (focusedIndex === index) setFocusedIndex(null);
   }
 
   function addUnmapped(filename: string) {
-    const base = filename.replace(/\.\w+$/, "");
-    onChange([...entries, { name: filename, keywords: [base], tags: [] }]);
+    onChange([...entries, { name: filename, keywords: [filename.replace(/\.\w+$/, "")], tags: [] }]);
   }
 
   function addAllUnmapped() {
-    const newEntries = unmappedFiles.map((f) => ({
-      name: f,
-      keywords: [f.replace(/\.\w+$/, "")],
-      tags: [],
-    }));
-    onChange([...entries, ...newEntries]);
+    onChange([...entries, ...unmappedFiles.map((f) => ({ name: f, keywords: [f.replace(/\.\w+$/, "")], tags: [] }))]);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -103,73 +111,169 @@ export function DcconTable({ entries, imageFiles, repo, branch, onChange }: Prop
     if (!over || active.id === over.id) return;
     const oldIndex = entries.findIndex((_, i) => `row-${i}` === active.id);
     const newIndex = entries.findIndex((_, i) => `row-${i}` === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      onChange(arrayMove(entries, oldIndex, newIndex));
-    }
+    if (oldIndex !== -1 && newIndex !== -1) onChange(arrayMove(entries, oldIndex, newIndex));
   }
+
+  const toggleSelect = useCallback((index: number) => {
+    setSelected((prev) => { const s = new Set(prev); if (s.has(index)) s.delete(index); else s.add(index); return s; });
+  }, []);
+
+  const handleRowClick = useCallback((index: number) => {
+    setFocusedIndex((prev) => prev === index ? null : index);
+  }, []);
+
+  const allFilteredSelected = filteredEntries.length > 0 && filteredEntries.every(({ originalIndex }) => selected.has(originalIndex));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) setSelected(new Set());
+    else setSelected(new Set(filteredEntries.map(({ originalIndex }) => originalIndex)));
+  }
+
+  function addBatchTag() {
+    const tag = batchTag.trim();
+    if (!tag || selected.size === 0) return;
+    onChange(entries.map((e, i) => {
+      if (!selected.has(i) || e.tags.includes(tag)) return e;
+      return { ...e, tags: [...e.tags, tag] };
+    }));
+    setBatchTag("");
+  }
+
+  function removeBatchTag(tag: string) {
+    if (selected.size === 0) return;
+    if (!confirm(`선택된 ${selected.size}개 항목에서 "${tag}" 태그를 제거할까요?`)) return;
+    onChange(entries.map((e, i) => {
+      if (!selected.has(i)) return e;
+      return { ...e, tags: e.tags.filter((t) => t !== tag) };
+    }));
+  }
+
+  const selectedTags = useMemo(() => {
+    if (selected.size === 0) return [];
+    const m = new Map<string, number>();
+    for (const i of selected) if (i < entries.length) for (const t of entries[i].tags) m.set(t, (m.get(t) || 0) + 1);
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).map(([tag, count]) => ({ tag, count }));
+  }, [selected, entries]);
 
   const isFiltering = search || filterMode !== "all" || selectedTag;
 
   return (
-    <div className="dccon-table-wrapper">
-      <div className="toolbar">
-        <input
-          type="text"
-          className="search-input"
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Toolbar */}
+      <div className="shrink-0 flex items-center gap-2 px-6 py-2 border-b border-border flex-wrap">
+        <Input
           placeholder="검색 (파일명, 키워드, 태그)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 min-w-[180px] h-8"
         />
-        <select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}>
+        <select
+          value={selectedTag}
+          onChange={(e) => setSelectedTag(e.target.value)}
+          className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+        >
           <option value="">모든 태그</option>
-          {allTags.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
+          {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <div className="filter-buttons">
-          <button
-            className={filterMode === "all" ? "active" : ""}
-            onClick={() => setFilterMode("all")}
-          >
-            전체 ({entries.length})
-          </button>
-          <button
-            className={`${filterMode === "unmapped" ? "active" : ""} ${unmappedFiles.length > 0 ? "has-issues" : ""}`}
-            onClick={() => setFilterMode("unmapped")}
-          >
-            매핑 없음 ({unmappedFiles.length})
-          </button>
-          <button
-            className={`${filterMode === "missing" ? "active" : ""} ${missingFiles.length > 0 ? "has-issues" : ""}`}
-            onClick={() => setFilterMode("missing")}
-          >
-            파일 없음 ({missingFiles.length})
-          </button>
+
+        <div className="flex rounded-md border border-border overflow-hidden">
+          {([["all", `전체 ${entries.length}`], ["unmapped", `매핑없음 ${unmappedFiles.length}`], ["missing", `파일없음 ${missingFiles.length}`]] as const).map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setFilterMode(mode)}
+              className={`px-3 py-1 text-xs transition-colors ${filterMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"} ${mode !== "all" && ((mode === "unmapped" && unmappedFiles.length > 0) || (mode === "missing" && missingFiles.length > 0)) ? "text-amber-400" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        <Button
+          variant={compact ? "default" : "outline"}
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setCompact(!compact)}
+        >
+          {compact ? "기본" : "컴팩트"}
+        </Button>
       </div>
 
+      {/* Preview */}
+      <div className="shrink-0 flex items-center gap-4 px-6 py-3 bg-card border-b border-border min-h-[136px]">
+        {focusedEntry ? (
+          <>
+            <img
+              src={imageUrl(repo, focusedEntry.name)}
+              alt=""
+              className="w-28 h-28 object-contain rounded-lg bg-white/5 shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <span className="text-sm font-semibold text-foreground">{focusedEntry.name}</span>
+              <div className="flex flex-wrap gap-1">
+                {focusedEntry.keywords.map((k, i) => <Badge key={i} variant="outline" className="text-xs font-normal">{k}</Badge>)}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {focusedEntry.tags.map((t, i) => <Badge key={i} variant="secondary" className="text-xs font-normal">{t}</Badge>)}
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setFocusedIndex(null)}>
+              &times;
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center justify-center w-full text-sm text-muted-foreground">
+            이미지나 파일명을 클릭하면 상세 정보를 볼 수 있습니다
+          </div>
+        )}
+      </div>
+
+      {/* Batch bar */}
+      {filterMode !== "unmapped" && (
+        <div className={`shrink-0 flex items-center gap-2 px-6 py-1.5 border-b border-border flex-wrap ${selected.size > 0 ? "bg-primary/5" : "bg-muted/30"}`}>
+          <span className={`text-xs ${selected.size > 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+            {selected.size > 0 ? `${selected.size}개 선택` : "항목을 선택하세요"}
+          </span>
+          <Input
+            placeholder="태그 입력 후 Enter"
+            value={batchTag}
+            onChange={(e) => setBatchTag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBatchTag(); } }}
+            disabled={selected.size === 0}
+            className="h-7 w-40 text-xs"
+          />
+          <Button size="sm" className="h-7 text-xs" onClick={addBatchTag} disabled={!batchTag.trim() || selected.size === 0}>추가</Button>
+          {selectedTags.map(({ tag, count }) => (
+            <Badge key={tag} variant="secondary" className="gap-1 text-xs font-normal cursor-default">
+              {tag} ({count})
+              <button onClick={() => removeBatchTag(tag)} className="hover:text-destructive">&times;</button>
+            </Badge>
+          ))}
+          {selected.size > 0 && (
+            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => setSelected(new Set())}>해제</Button>
+          )}
+        </div>
+      )}
+
+      {/* Content */}
       {filterMode === "unmapped" ? (
-        <div className="unmapped-section">
-          <div className="unmapped-header">
-            <h3>이미지 폴더에 있지만 dccon_list.js에 없는 파일 ({unmappedFiles.length}개)</h3>
-            {unmappedFiles.length > 0 && (
-              <button className="btn-add-all" onClick={addAllUnmapped}>
-                전체 추가
-              </button>
-            )}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-medium text-amber-400">매핑 없는 이미지 ({unmappedFiles.length}개)</h3>
+            {unmappedFiles.length > 0 && <Button size="sm" variant="outline" onClick={addAllUnmapped}>전체 추가</Button>}
           </div>
           {unmappedFiles.length === 0 ? (
-            <p className="empty-message">모든 이미지가 매핑되어 있습니다.</p>
+            <p className="text-center text-muted-foreground py-12">모든 이미지가 매핑되어 있습니다.</p>
           ) : (
-            <div className="unmapped-grid">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
               {unmappedFiles.map((f) => (
-                <div key={f} className="unmapped-card" onClick={() => addUnmapped(f)}>
-                  <img
-                    src={imageUrl(repo, f, branch)}
-                    alt={f}
-                    loading="lazy"
-                  />
-                  <span className="unmapped-name">{f}</span>
+                <div
+                  key={f}
+                  className="flex flex-col items-center p-2 rounded-lg border border-dashed border-amber-400/40 bg-card cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => addUnmapped(f)}
+                >
+                  <img src={imageUrl(repo, f)} alt={f} loading="lazy" className="w-14 h-14 object-contain" />
+                  <span className="text-[10px] text-muted-foreground mt-1 text-center break-all">{f}</span>
                 </div>
               ))}
             </div>
@@ -177,43 +281,63 @@ export function DcconTable({ entries, imageFiles, repo, branch, onChange }: Prop
         </div>
       ) : (
         <>
-          <div className="table-header">
-            <div className="col-handle"></div>
-            <div className="col-thumb">이미지</div>
-            <div className="col-name">파일명</div>
-            <div className="col-keywords">키워드</div>
-            <div className="col-tags">태그</div>
-            <div className="col-actions"></div>
+          {/* Table header */}
+          <div className={`
+            shrink-0 grid items-center gap-0 px-0 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-b border-border
+            ${compact
+              ? "grid-cols-[28px_52px_140px_1fr_1fr_32px_36px]"
+              : "grid-cols-[28px_92px_160px_1fr_1fr_32px_36px]"}
+          `}>
+            <div className="py-2"></div>
+            <div className="py-2 px-2">이미지</div>
+            <div className="py-2 px-2">파일명</div>
+            <div className="py-2 px-2">키워드</div>
+            <div className="py-2 px-2">태그</div>
+            <div className="py-2"></div>
+            <div className="flex items-center justify-center py-2" onClick={toggleSelectAll}>
+              <Checkbox checked={allFilteredSelected} onCheckedChange={() => toggleSelectAll()} />
+            </div>
           </div>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
+
+          {/* Virtualized rows */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext
               items={filteredEntries.map(({ originalIndex }) => `row-${originalIndex}`)}
               strategy={verticalListSortingStrategy}
               disabled={!!isFiltering}
             >
-              <div className="table-body">
-                {filteredEntries.map(({ entry, originalIndex }) => (
-                  <DcconRow
-                    key={`row-${originalIndex}`}
-                    id={`row-${originalIndex}`}
-                    entry={entry}
-                    repo={repo}
-                    branch={branch}
-                    isMissingFile={!fileSet.has(entry.name)}
-                    onChange={(updated) => updateEntry(originalIndex, updated)}
-                    onDelete={() => deleteEntry(originalIndex)}
-                    sortDisabled={!!isFiltering}
-                  />
-                ))}
+              <div className="flex-1 overflow-y-auto min-h-0" ref={scrollRef}>
+                <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const { entry, originalIndex } = filteredEntries[virtualRow.index];
+                    return (
+                      <div
+                        key={`row-${originalIndex}`}
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
+                      >
+                        <DcconRow
+                          id={`row-${originalIndex}`}
+                          entry={entry}
+                          repo={repo}
+                          compact={compact}
+                          isMissingFile={!fileSet.has(entry.name)}
+                          isSelected={selected.has(originalIndex)}
+                          isFocused={focusedIndex === originalIndex}
+                          onToggleSelect={() => toggleSelect(originalIndex)}
+                          onFocus={() => handleRowClick(originalIndex)}
+                          onChange={(updated) => updateEntry(originalIndex, updated)}
+                          onDelete={() => deleteEntry(originalIndex)}
+                          sortDisabled={!!isFiltering}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </SortableContext>
           </DndContext>
           {filteredEntries.length === 0 && (
-            <p className="empty-message">
+            <p className="text-center text-muted-foreground py-12">
               {search || selectedTag ? "검색 결과가 없습니다." : "항목이 없습니다."}
             </p>
           )}
