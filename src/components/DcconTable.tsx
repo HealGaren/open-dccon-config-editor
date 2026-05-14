@@ -15,6 +15,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DcconEntry, RepoInfo } from "../types";
 import { DcconRow } from "./DcconRow";
+import { ReorderGrid } from "./ReorderGrid";
 import { imageUrl } from "../utils/github";
 import { TagMultiSelect } from "./TagMultiSelect";
 import { Input } from "./ui/input";
@@ -43,6 +44,7 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   const [lastToggled, setLastToggled] = useState<number | null>(null);
   const [batchTag, setBatchTag] = useState("");
   const [compact, setCompact] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
   const [unmappedSelected, setUnmappedSelected] = useState<Set<string>>(new Set());
   const [unmappedTags, setUnmappedTags] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -201,6 +203,17 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
 
   const isFiltering = search || filterMode !== "all" || selectedTag;
 
+  function scrollToFirstIssue() {
+    const firstIssueIdx = Array.from(keywordIssues.keys()).sort((a, b) => a - b)[0];
+    if (firstIssueIdx === undefined) return;
+    const virtualIdx = filteredEntries.findIndex(({ originalIndex }) => originalIndex === firstIssueIdx);
+    if (virtualIdx !== -1) {
+      virtualizer.scrollToIndex(virtualIdx, { align: "center" });
+      setLastToggled(firstIssueIdx);
+      setSelected((prev) => new Set(prev).add(firstIssueIdx));
+    }
+  }
+
   function toggleUnmapped(f: string) {
     setUnmappedSelected((prev) => {
       const s = new Set(prev);
@@ -251,8 +264,21 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
           {compact ? "기본" : "컴팩트"}
         </Button>
 
-        {totalIssueCount > 0 && filterMode !== "unmapped" && (
-          <Badge variant="destructive" className="text-xs">
+        <Button
+          variant={reorderMode ? "default" : "outline"}
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setReorderMode(!reorderMode)}
+        >
+          순서변경
+        </Button>
+
+        {totalIssueCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="text-xs cursor-pointer ml-auto"
+            onClick={scrollToFirstIssue}
+          >
             키워드 문제 {totalIssueCount}건
           </Badge>
         )}
@@ -313,7 +339,9 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
       )}
 
       {/* Content */}
-      {filterMode === "unmapped" ? (
+      {reorderMode ? (
+        <ReorderGrid entries={entries} repo={repo} onChange={onChange} onClose={() => setReorderMode(false)} />
+      ) : filterMode === "unmapped" ? (
         <div className="flex-1 overflow-y-auto p-6">
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <h3 className="text-sm font-medium text-amber-400">매핑 없는 이미지 ({unmappedFiles.length}개)</h3>
