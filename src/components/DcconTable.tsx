@@ -16,6 +16,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { DcconEntry, RepoInfo } from "../types";
 import { DcconRow } from "./DcconRow";
 import { imageUrl } from "../utils/github";
+import { TagMultiSelect } from "./TagMultiSelect";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -42,6 +43,8 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   const [lastToggled, setLastToggled] = useState<number | null>(null);
   const [batchTag, setBatchTag] = useState("");
   const [compact, setCompact] = useState(false);
+  const [unmappedSelected, setUnmappedSelected] = useState<Set<string>>(new Set());
+  const [unmappedTags, setUnmappedTags] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const rowHeight = compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_NORMAL;
@@ -60,6 +63,36 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
     entries.forEach((e) => e.tags.forEach((t) => s.add(t)));
     return Array.from(s).sort();
   }, [entries]);
+
+  // keyword validation
+  const keywordIssues = useMemo(() => {
+    const issues = new Map<number, string[]>();
+    const keywordOwners = new Map<string, number[]>();
+
+    entries.forEach((e, i) => {
+      if (e.keywords.length === 0) {
+        issues.set(i, [...(issues.get(i) || []), "키워드 없음"]);
+      }
+      e.keywords.forEach((k) => {
+        if (!keywordOwners.has(k)) keywordOwners.set(k, []);
+        keywordOwners.get(k)!.push(i);
+      });
+    });
+
+    keywordOwners.forEach((owners, keyword) => {
+      if (owners.length > 1) {
+        owners.forEach((i) => {
+          const msgs = issues.get(i) || [];
+          msgs.push(`"${keyword}" 중복`);
+          issues.set(i, msgs);
+        });
+      }
+    });
+
+    return issues;
+  }, [entries]);
+
+  const totalIssueCount = keywordIssues.size;
 
   const filteredEntries = useMemo(() => {
     let result = entries.map((e, i) => ({ entry: e, originalIndex: i }));
@@ -100,12 +133,14 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
     if (lastToggled === index) setLastToggled(null);
   }
 
-  function addUnmapped(filename: string) {
-    onChange([...entries, { name: filename, keywords: [filename.replace(/\.\w+$/, "")], tags: [] }]);
-  }
-
-  function addAllUnmapped() {
-    onChange([...entries, ...unmappedFiles.map((f) => ({ name: f, keywords: [f.replace(/\.\w+$/, "")], tags: [] }))]);
+  function addUnmappedBatch(files: string[], tags: string[]) {
+    const newEntries = files.map((f) => ({
+      name: f,
+      keywords: [f.replace(/\.\w+$/, "")],
+      tags: [...tags],
+    }));
+    onChange([...entries, ...newEntries]);
+    setUnmappedSelected(new Set());
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -166,6 +201,16 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
 
   const isFiltering = search || filterMode !== "all" || selectedTag;
 
+  function toggleUnmapped(f: string) {
+    setUnmappedSelected((prev) => {
+      const s = new Set(prev);
+      if (s.has(f)) s.delete(f); else s.add(f);
+      return s;
+    });
+  }
+
+  const allUnmappedSelected = unmappedFiles.length > 0 && unmappedFiles.every((f) => unmappedSelected.has(f));
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Toolbar */}
@@ -205,6 +250,12 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
         >
           {compact ? "기본" : "컴팩트"}
         </Button>
+
+        {totalIssueCount > 0 && filterMode !== "unmapped" && (
+          <Badge variant="destructive" className="text-xs">
+            키워드 문제 {totalIssueCount}건
+          </Badge>
+        )}
       </div>
 
       {/* Preview - always visible */}
@@ -264,9 +315,33 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
       {/* Content */}
       {filterMode === "unmapped" ? (
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
             <h3 className="text-sm font-medium text-amber-400">매핑 없는 이미지 ({unmappedFiles.length}개)</h3>
-            {unmappedFiles.length > 0 && <Button size="sm" variant="outline" onClick={addAllUnmapped}>전체 추가</Button>}
+            <div className="ml-auto flex items-center gap-2">
+              <TagMultiSelect allTags={allTags} selected={unmappedTags} onChange={setUnmappedTags} />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => addUnmappedBatch(
+                  unmappedSelected.size > 0 ? Array.from(unmappedSelected) : unmappedFiles,
+                  Array.from(unmappedTags)
+                )}
+                disabled={unmappedFiles.length === 0}
+              >
+                {unmappedSelected.size > 0 ? `선택 ${unmappedSelected.size}개 추가` : "전체 추가"}
+              </Button>
+              {unmappedFiles.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (allUnmappedSelected) setUnmappedSelected(new Set());
+                    else setUnmappedSelected(new Set(unmappedFiles));
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {allUnmappedSelected ? "전체 해제" : "전체 선택"}
+                </button>
+              )}
+            </div>
           </div>
           {unmappedFiles.length === 0 ? (
             <p className="text-center text-muted-foreground py-12">모든 이미지가 매핑되어 있습니다.</p>
@@ -275,9 +350,17 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
               {unmappedFiles.map((f) => (
                 <div
                   key={f}
-                  className="flex flex-col items-center p-2 rounded-lg border border-dashed border-amber-400/40 bg-card cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => addUnmapped(f)}
+                  className={`flex flex-col items-center p-2 rounded-lg border cursor-pointer transition-colors relative
+                    ${unmappedSelected.has(f)
+                      ? "border-primary bg-primary/10"
+                      : "border-dashed border-amber-400/40 bg-card hover:bg-accent"}`}
+                  onClick={() => toggleUnmapped(f)}
                 >
+                  {unmappedSelected.has(f) && (
+                    <div className="absolute top-1 right-1">
+                      <Checkbox checked={true} />
+                    </div>
+                  )}
                   <img src={imageUrl(repo, f)} alt={f} loading="lazy" className="w-14 h-14 object-contain" />
                   <span className="text-[10px] text-muted-foreground mt-1 text-center break-all">{f}</span>
                 </div>
@@ -328,6 +411,7 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
                           compact={compact}
                           isMissingFile={!fileSet.has(entry.name)}
                           isSelected={selected.has(originalIndex)}
+                          keywordWarnings={keywordIssues.get(originalIndex)}
                           onToggleSelect={() => toggleSelect(originalIndex)}
                           onChange={(updated) => updateEntry(originalIndex, updated)}
                           onDelete={() => deleteEntry(originalIndex)}

@@ -14,6 +14,7 @@ interface Props {
   compact: boolean;
   isMissingFile: boolean;
   isSelected: boolean;
+  keywordWarnings?: string[];
   onToggleSelect: () => void;
   onChange: (entry: DcconEntry) => void;
   onDelete: () => void;
@@ -27,6 +28,7 @@ export function DcconRow({
   compact,
   isMissingFile,
   isSelected,
+  keywordWarnings,
   onToggleSelect,
   onChange,
   onDelete,
@@ -113,6 +115,13 @@ export function DcconRow({
           placeholder="키워드"
           variant="outline"
         />
+        {keywordWarnings && keywordWarnings.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {keywordWarnings.map((w, i) => (
+              <span key={i} className="text-[10px] text-destructive">{w}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tags */}
