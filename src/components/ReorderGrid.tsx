@@ -49,7 +49,7 @@ function GridItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, animateLayoutChanges: () => false });
 
   const style = isDragOverlay
     ? {}
