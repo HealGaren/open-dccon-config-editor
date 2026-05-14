@@ -197,21 +197,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
     <div className="flex flex-col flex-1 min-h-0">
       {/* Toolbar */}
       <div className="shrink-0 flex items-center gap-2 px-6 py-2 border-b border-border flex-wrap">
-        <Input
-          placeholder="검색 (파일명, 키워드, 태그)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[160px] h-8"
-        />
-        <select
-          value={filterTag}
-          onChange={(e) => setFilterTag(e.target.value)}
-          className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-        >
-          <option value="">모든 태그</option>
-          {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-
+        {/* Left: tabs, modes, view switch */}
         <div className="flex rounded-md border border-border overflow-hidden">
           {([["all", `전체 ${entries.length}`], ["unmapped", `매핑없음 ${unmappedFiles.length}`], ["missing", `파일없음 ${missingFiles.length}`]] as const).map(([mode, label]) => (
             <button
@@ -234,13 +220,31 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
         {keywordIssues.size > 0 && (
           <Badge
             variant={filterMode === "issues" ? "default" : "destructive"}
-            className="text-xs ml-auto cursor-pointer"
+            className="text-xs cursor-pointer"
             onClick={() => setFilterMode(filterMode === "issues" ? "all" : "issues")}
             title={Array.from(new Set(Array.from(keywordIssues.values()).flat())).join(", ")}
           >
             {filterMode === "issues" ? "전체 보기" : `키워드 문제 ${keywordIssues.size}건`}
           </Badge>
         )}
+
+        {/* Right: search, tag filter */}
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value="">모든 태그</option>
+            {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <Input
+            placeholder="검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-48 h-8"
+          />
+        </div>
       </div>
 
       {/* Grid area */}

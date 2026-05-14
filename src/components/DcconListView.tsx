@@ -80,20 +80,6 @@ export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToG
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="shrink-0 flex items-center gap-2 px-6 py-2 border-b border-border flex-wrap">
-        <Input
-          placeholder="검색 (파일명, 키워드, 태그)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[160px] h-8"
-        />
-        <select
-          value={filterTag}
-          onChange={(e) => setFilterTag(e.target.value)}
-          className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-        >
-          <option value="">모든 태그</option>
-          {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
         <span className="text-xs text-muted-foreground">{filtered.length}개</span>
         <Button
           variant={compact ? "default" : "outline"}
@@ -103,7 +89,23 @@ export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToG
         >
           {compact ? "기본" : "컴팩트"}
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={onSwitchToGrid}>그리드뷰</Button>
+        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onSwitchToGrid}>그리드뷰</Button>
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value="">모든 태그</option>
+            {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <Input
+            placeholder="검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-48 h-8"
+          />
+        </div>
       </div>
 
       {/* Header */}
