@@ -117,11 +117,11 @@ export function GridCard({
         />
       ) : (
         <span
-          className="text-[10px] text-muted-foreground mt-1 text-center truncate w-full hover:text-foreground"
+          className="group/kw inline-flex items-center gap-0.5 text-[10px] text-muted-foreground mt-1 text-center truncate w-full justify-center hover:text-foreground cursor-text"
           onClick={startEdit}
-          title="클릭하여 대표 키워드 편집"
         >
-          {keyword}
+          <span className="truncate">{keyword}</span>
+          <svg className="w-2.5 h-2.5 shrink-0 opacity-0 group-hover/kw:opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
         </span>
       )}
     </div>

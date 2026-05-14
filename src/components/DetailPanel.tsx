@@ -19,7 +19,7 @@ export function SingleDetail({ entry, repo, onChange, onDelete }: SingleProps) {
       <img
         src={imageUrl(repo, entry.name)}
         alt=""
-        className="w-24 h-24 object-contain rounded-lg bg-white/5 shrink-0"
+        className="w-32 h-32 object-contain rounded-lg bg-white/5 shrink-0"
         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
       />
       <div className="flex flex-col gap-2 flex-1 min-w-0">
