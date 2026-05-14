@@ -33,8 +33,8 @@ export function ExportPanel({ entries }: Props) {
 
   return (
     <div className="flex items-center gap-1 relative">
-      <Button variant="outline" size="sm" onClick={download}>다운로드</Button>
-      <Button variant="ghost" size="sm" onClick={copyToClipboard}>복사</Button>
+      <Button variant="default" size="sm" onClick={download}>설정 JS 다운로드</Button>
+      <Button variant="outline" size="sm" onClick={copyToClipboard}>설정 JS 복사</Button>
       {copyMsg && (
         <span className="absolute -bottom-6 right-0 text-[11px] px-2 py-0.5 rounded bg-popover border border-border text-foreground shadow whitespace-nowrap z-50">
           {copyMsg}
