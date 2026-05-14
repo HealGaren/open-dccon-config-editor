@@ -79,9 +79,12 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       <header className="shrink-0 border-b border-border px-6 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">dccon manager</h1>
-          <p className="text-xs text-muted-foreground">디시콘 매핑 편집기</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">dccon manager</h1>
+            <p className="text-xs text-muted-foreground">디시콘 매핑 편집기</p>
+          </div>
+          <span className="text-[11px] text-muted-foreground/60">Ctrl+클릭 개별선택 · Shift+클릭 범위선택</span>
         </div>
         {repo && (
           <div className="flex items-center gap-2">
