@@ -121,16 +121,18 @@ export function GridCard({
           className="text-[10px] mt-1 text-center w-full bg-transparent border-b border-primary outline-none text-foreground"
         />
       ) : (
-        <span
-          className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground mt-1 text-center truncate w-full justify-center hover:text-foreground cursor-text"
-          onClick={startEdit}
-        >
-          <span className="truncate">{keyword}</span>
-          <svg className="w-2.5 h-2.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-        </span>
-        {warningTexts && warningTexts.length > 0 && (
-          <span className="text-[9px] text-destructive truncate w-full text-center">{warningTexts[0]}</span>
-        )}
+        <>
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground mt-1 text-center truncate w-full justify-center hover:text-foreground cursor-text"
+            onClick={startEdit}
+          >
+            <span className="truncate">{keyword}</span>
+            <svg className="w-2.5 h-2.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </span>
+          {warningTexts && warningTexts.length > 0 && (
+            <span className="text-[9px] text-destructive truncate w-full text-center">{warningTexts[0]}</span>
+          )}
+        </>
       )}
     </div>
   );
