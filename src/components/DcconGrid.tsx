@@ -210,9 +210,12 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
           ))}
         </div>
 
-        <div className="flex rounded-md border border-border overflow-hidden">
-          <button onClick={() => setSelectMode("single")} className={`px-3 py-1 text-xs ${selectMode === "single" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>단일</button>
-          <button onClick={() => setSelectMode("multi")} className={`px-3 py-1 text-xs ${selectMode === "multi" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>다중</button>
+        <div className="flex items-center gap-0">
+          <span className="text-[11px] text-muted-foreground mr-1">클릭</span>
+          <div className="flex rounded-md border border-border overflow-hidden">
+            <button onClick={() => setSelectMode("single")} className={`px-3 py-1 text-xs ${selectMode === "single" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>단일</button>
+            <button onClick={() => setSelectMode("multi")} className={`px-3 py-1 text-xs ${selectMode === "multi" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>다중</button>
+          </div>
         </div>
 
         <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onSwitchToList}>리스트뷰</Button>
