@@ -3,7 +3,8 @@ import type { DcconEntry, RepoInfo } from "./types";
 import { parseRepoUrl, fetchImageList, fetchDcconListJs } from "./utils/github";
 import { parseDcconList } from "./utils/dcconParser";
 import { RepoInput } from "./components/RepoInput";
-import { DcconTable } from "./components/DcconTable";
+import { DcconGrid } from "./components/DcconGrid";
+import { DcconListView } from "./components/DcconListView";
 import { ExportPanel } from "./components/ExportPanel";
 import { Badge } from "./components/ui/badge";
 
@@ -29,13 +30,16 @@ function updateUrlParam(repoUrl: string) {
   window.history.replaceState(null, "", url.toString());
 }
 
+type ViewMode = "grid" | "list";
+
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [repo, setRepo] = useState<RepoInfo | null>(null);
-  const [branch, setBranch] = useState("master");
+  const [, setBranch] = useState("master");
   const [entries, setEntries] = useState<DcconEntry[]>([]);
   const [imageFiles, setImageFiles] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const didAutoLoad = useRef(false);
 
   const handleLoad = useCallback(async (url: string, token: string, branchName: string) => {
@@ -68,12 +72,8 @@ export default function App() {
     if (didAutoLoad.current) return;
     didAutoLoad.current = true;
     const paramUrl = getInitialUrl();
-    if (paramUrl) {
-      handleLoad(paramUrl, "", "master");
-    } else {
-      const saved = loadSaved();
-      if (saved) handleLoad(saved.url, saved.token, saved.branch);
-    }
+    if (paramUrl) handleLoad(paramUrl, "", "master");
+    else { const saved = loadSaved(); if (saved) handleLoad(saved.url, saved.token, saved.branch); }
   }, [handleLoad]);
 
   return (
@@ -104,13 +104,23 @@ export default function App() {
       )}
 
       {repo && entries.length > 0 && (
-        <DcconTable
-          entries={entries}
-          imageFiles={imageFiles}
-          repo={repo}
-          branch={branch}
-          onChange={setEntries}
-        />
+        viewMode === "grid" ? (
+          <DcconGrid
+            entries={entries}
+            imageFiles={imageFiles}
+            repo={repo}
+            onChange={setEntries}
+            onSwitchToList={() => setViewMode("list")}
+          />
+        ) : (
+          <DcconListView
+            entries={entries}
+            imageFiles={imageFiles}
+            repo={repo}
+            onChange={setEntries}
+            onSwitchToGrid={() => setViewMode("grid")}
+          />
+        )
       )}
     </div>
   );
