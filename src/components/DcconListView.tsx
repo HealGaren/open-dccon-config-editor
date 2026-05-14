@@ -15,12 +15,21 @@ interface Props {
   onSwitchToGrid: () => void;
 }
 
+const ROW_NORMAL = 80;
+const ROW_COMPACT = 48;
+const COLS_NORMAL = "grid-cols-[40px_80px_160px_1fr_1fr]";
+const COLS_COMPACT = "grid-cols-[40px_48px_140px_1fr_1fr]";
+
 export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToGrid }: Props) {
   const [search, setSearch] = useState("");
   const [filterTag, setFilterTag] = useState("");
+  const [compact, setCompact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fileSet = useMemo(() => new Set(imageFiles), [imageFiles]);
+  const rowHeight = compact ? ROW_COMPACT : ROW_NORMAL;
+  const cols = compact ? COLS_COMPACT : COLS_NORMAL;
+  const thumbSize = compact ? 36 : 64;
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -58,7 +67,7 @@ export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToG
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 48,
+    estimateSize: () => rowHeight,
     overscan: 15,
   });
 
@@ -86,11 +95,20 @@ export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToG
           {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <span className="text-xs text-muted-foreground">{filtered.length}개</span>
+        <Button
+          variant={compact ? "default" : "outline"}
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setCompact(!compact)}
+        >
+          {compact ? "기본" : "컴팩트"}
+        </Button>
         <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={onSwitchToGrid}>그리드뷰</Button>
       </div>
 
       {/* Header */}
-      <div className="shrink-0 grid grid-cols-[52px_140px_1fr_1fr] items-center gap-0 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-b border-border">
+      <div className={`shrink-0 grid ${cols} items-center gap-0 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-b border-border`}>
+        <div className="py-2 px-2 text-center">#</div>
         <div className="py-2 px-2">이미지</div>
         <div className="py-2 px-2">파일명</div>
         <div className="py-2 px-2">키워드</div>
@@ -106,13 +124,17 @@ export function DcconListView({ entries, imageFiles, repo, onChange, onSwitchToG
               <div
                 key={idx}
                 style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vr.start}px)` }}
-                className="grid grid-cols-[52px_140px_1fr_1fr] items-center gap-0 border-b border-border hover:bg-accent/30"
+                className={`grid ${cols} items-center gap-0 border-b border-border hover:bg-accent/30`}
               >
+                <div className="flex items-center justify-center py-1 text-xs text-muted-foreground tabular-nums">
+                  {idx + 1}
+                </div>
                 <div className="flex items-center justify-center py-1 px-1">
                   <img
                     src={imageUrl(repo, entry.name)}
                     alt=""
-                    className="w-9 h-9 object-contain rounded bg-white/5"
+                    className="object-contain rounded bg-white/5"
+                    style={{ width: thumbSize, height: thumbSize }}
                     loading="lazy"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
