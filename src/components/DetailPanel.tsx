@@ -15,16 +15,16 @@ interface SingleProps {
 
 export function SingleDetail({ entry, repo, onChange, onDelete }: SingleProps) {
   return (
-    <div className="flex items-start gap-4">
+    <div className="flex items-start gap-5">
       <img
         src={imageUrl(repo, entry.name)}
         alt=""
-        className="w-32 h-32 object-contain rounded-lg bg-white/5 shrink-0"
+        className="w-40 h-40 object-contain rounded-lg bg-white/5 shrink-0"
         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
       />
-      <div className="flex flex-col gap-2 flex-1 min-w-0">
+      <div className="flex flex-col gap-3 flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">{entry.name}</span>
+          <span className="text-base font-semibold text-foreground">{entry.name}</span>
           <button onClick={onDelete} className="text-xs text-muted-foreground hover:text-destructive ml-auto">삭제</button>
         </div>
         <div className="flex items-center gap-2">
@@ -81,31 +81,41 @@ export function BatchDetail({ count, entries: _entries, selectedIndices, allEntr
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-primary">{count}개 선택</span>
-        <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={onClearSelection}>해제</Button>
+    <div className="flex gap-6">
+      {/* 선택 정보 */}
+      <div className="flex flex-col gap-1 shrink-0">
+        <span className="text-lg font-semibold text-primary">{count}개 선택</span>
+        <Button variant="ghost" size="sm" className="h-7 text-xs w-fit" onClick={onClearSelection}>선택 해제</Button>
       </div>
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="태그 입력 후 Enter"
-          value={batchTag}
-          onChange={(e) => setBatchTag(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-          className="h-7 w-44 text-xs"
-        />
-        <Button size="sm" className="h-7 text-xs" onClick={addTag} disabled={!batchTag.trim()}>추가</Button>
-      </div>
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {tags.map(([tag, c]) => (
-            <Badge key={tag} variant="secondary" className="gap-1 text-xs font-normal cursor-default">
-              {tag} ({c})
-              <button onClick={() => removeTag(tag)} className="hover:text-destructive">&times;</button>
-            </Badge>
-          ))}
+
+      {/* 일괄 태그 편집 */}
+      <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <span className="text-xs font-medium text-muted-foreground">일괄 태그 추가</span>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="태그 이름 입력 후 Enter"
+            value={batchTag}
+            onChange={(e) => setBatchTag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+            className="h-8 w-52 text-sm"
+          />
+          <Button size="sm" className="h-8" onClick={addTag} disabled={!batchTag.trim()}>추가</Button>
         </div>
-      )}
+
+        {tags.length > 0 && (
+          <div>
+            <span className="text-xs font-medium text-muted-foreground mb-1 block">선택 항목의 태그 (클릭하여 제거)</span>
+            <div className="flex flex-wrap gap-1">
+              {tags.map(([tag, c]) => (
+                <Badge key={tag} variant="secondary" className="gap-1 text-xs font-normal cursor-pointer hover:bg-destructive/20" onClick={() => removeTag(tag)}>
+                  {tag} <span className="text-muted-foreground">({c}/{count})</span>
+                  <span className="text-muted-foreground hover:text-destructive">&times;</span>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
