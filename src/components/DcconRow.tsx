@@ -14,9 +14,7 @@ interface Props {
   compact: boolean;
   isMissingFile: boolean;
   isSelected: boolean;
-  isFocused: boolean;
   onToggleSelect: () => void;
-  onFocus: () => void;
   onChange: (entry: DcconEntry) => void;
   onDelete: () => void;
   sortDisabled: boolean;
@@ -29,9 +27,7 @@ export function DcconRow({
   compact,
   isMissingFile,
   isSelected,
-  isFocused,
   onToggleSelect,
-  onFocus,
   onChange,
   onDelete,
   sortDisabled,
@@ -61,14 +57,18 @@ export function DcconRow({
       className={`
         group grid items-center gap-0 border-b border-border cursor-pointer transition-colors
         ${compact
-          ? "grid-cols-[28px_52px_140px_1fr_1fr_32px_36px]"
-          : "grid-cols-[28px_92px_160px_1fr_1fr_32px_36px]"}
+          ? "grid-cols-[36px_28px_52px_140px_1fr_1fr_32px]"
+          : "grid-cols-[36px_28px_92px_160px_1fr_1fr_32px]"}
         ${isMissingFile ? "bg-destructive/5" : ""}
         ${isSelected ? "bg-primary/5" : ""}
-        ${isFocused ? "bg-accent" : ""}
         hover:bg-accent/50
       `}
     >
+      {/* Checkbox */}
+      <div className="flex items-center justify-center h-full">
+        <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect()} />
+      </div>
+
       {/* Drag handle */}
       <div
         className="flex items-center justify-center h-full text-muted-foreground text-xs cursor-grab select-none"
@@ -79,10 +79,7 @@ export function DcconRow({
       </div>
 
       {/* Thumbnail */}
-      <div
-        className="flex items-center justify-center py-1"
-        onClick={(e) => { e.stopPropagation(); onFocus(); }}
-      >
+      <div className="flex items-center justify-center py-1">
         {isMissingFile || imgError ? (
           <div
             className="flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground text-[10px] text-center p-1 leading-tight"
@@ -103,11 +100,7 @@ export function DcconRow({
       </div>
 
       {/* Filename */}
-      <div
-        className="px-2 py-1 text-xs truncate border-r border-border"
-        title={entry.name}
-        onClick={(e) => { e.stopPropagation(); onFocus(); }}
-      >
+      <div className="px-2 py-1 text-xs truncate border-r border-border" title={entry.name}>
         <span className="text-foreground">{entry.name}</span>
         {isMissingFile && <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">파일 없음</Badge>}
       </div>
@@ -140,11 +133,6 @@ export function DcconRow({
         >
           &times;
         </button>
-      </div>
-
-      {/* Checkbox */}
-      <div className="flex items-center justify-center h-full">
-        <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect()} />
       </div>
     </div>
   );

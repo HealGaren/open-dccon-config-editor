@@ -39,9 +39,9 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [selectedTag, setSelectedTag] = useState<string>("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [lastToggled, setLastToggled] = useState<number | null>(null);
   const [batchTag, setBatchTag] = useState("");
   const [compact, setCompact] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const rowHeight = compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_NORMAL;
@@ -84,7 +84,9 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
     overscan: 10,
   });
 
-  const focusedEntry = focusedIndex !== null && focusedIndex < entries.length ? entries[focusedIndex] : null;
+  const previewEntry = lastToggled !== null && lastToggled < entries.length && selected.has(lastToggled)
+    ? entries[lastToggled]
+    : null;
 
   function updateEntry(index: number, updated: DcconEntry) {
     const next = [...entries];
@@ -95,7 +97,7 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   function deleteEntry(index: number) {
     onChange(entries.filter((_, i) => i !== index));
     setSelected((prev) => { const s = new Set(prev); s.delete(index); return s; });
-    if (focusedIndex === index) setFocusedIndex(null);
+    if (lastToggled === index) setLastToggled(null);
   }
 
   function addUnmapped(filename: string) {
@@ -115,18 +117,25 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
   }
 
   const toggleSelect = useCallback((index: number) => {
-    setSelected((prev) => { const s = new Set(prev); if (s.has(index)) s.delete(index); else s.add(index); return s; });
-  }, []);
-
-  const handleRowClick = useCallback((index: number) => {
-    setFocusedIndex((prev) => prev === index ? null : index);
+    setSelected((prev) => {
+      const s = new Set(prev);
+      if (s.has(index)) s.delete(index); else s.add(index);
+      return s;
+    });
+    setLastToggled(index);
   }, []);
 
   const allFilteredSelected = filteredEntries.length > 0 && filteredEntries.every(({ originalIndex }) => selected.has(originalIndex));
 
   function toggleSelectAll() {
-    if (allFilteredSelected) setSelected(new Set());
-    else setSelected(new Set(filteredEntries.map(({ originalIndex }) => originalIndex)));
+    if (allFilteredSelected) {
+      setSelected(new Set());
+      setLastToggled(null);
+    } else {
+      const all = filteredEntries.map(({ originalIndex }) => originalIndex);
+      setSelected(new Set(all));
+      if (all.length > 0) setLastToggled(all[0]);
+    }
   }
 
   function addBatchTag() {
@@ -198,32 +207,29 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
         </Button>
       </div>
 
-      {/* Preview */}
+      {/* Preview - always visible */}
       <div className="shrink-0 flex items-center gap-4 px-6 py-3 bg-card border-b border-border min-h-[136px]">
-        {focusedEntry ? (
+        {previewEntry ? (
           <>
             <img
-              src={imageUrl(repo, focusedEntry.name)}
+              src={imageUrl(repo, previewEntry.name)}
               alt=""
               className="w-28 h-28 object-contain rounded-lg bg-white/5 shrink-0"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-              <span className="text-sm font-semibold text-foreground">{focusedEntry.name}</span>
+              <span className="text-sm font-semibold text-foreground">{previewEntry.name}</span>
               <div className="flex flex-wrap gap-1">
-                {focusedEntry.keywords.map((k, i) => <Badge key={i} variant="outline" className="text-xs font-normal">{k}</Badge>)}
+                {previewEntry.keywords.map((k, i) => <Badge key={i} variant="outline" className="text-xs font-normal">{k}</Badge>)}
               </div>
               <div className="flex flex-wrap gap-1">
-                {focusedEntry.tags.map((t, i) => <Badge key={i} variant="secondary" className="text-xs font-normal">{t}</Badge>)}
+                {previewEntry.tags.map((t, i) => <Badge key={i} variant="secondary" className="text-xs font-normal">{t}</Badge>)}
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setFocusedIndex(null)}>
-              &times;
-            </Button>
           </>
         ) : (
           <div className="flex items-center justify-center w-full text-sm text-muted-foreground">
-            이미지나 파일명을 클릭하면 상세 정보를 볼 수 있습니다
+            항목을 선택하면 상세 정보가 표시됩니다
           </div>
         )}
       </div>
@@ -250,7 +256,7 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
             </Badge>
           ))}
           {selected.size > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => setSelected(new Set())}>해제</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => { setSelected(new Set()); setLastToggled(null); }}>해제</Button>
           )}
         </div>
       )}
@@ -285,18 +291,18 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
           <div className={`
             shrink-0 grid items-center gap-0 px-0 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-b border-border
             ${compact
-              ? "grid-cols-[28px_52px_140px_1fr_1fr_32px_36px]"
-              : "grid-cols-[28px_92px_160px_1fr_1fr_32px_36px]"}
+              ? "grid-cols-[36px_28px_52px_140px_1fr_1fr_32px]"
+              : "grid-cols-[36px_28px_92px_160px_1fr_1fr_32px]"}
           `}>
+            <div className="flex items-center justify-center py-2" onClick={toggleSelectAll}>
+              <Checkbox checked={allFilteredSelected} onCheckedChange={() => toggleSelectAll()} />
+            </div>
             <div className="py-2"></div>
             <div className="py-2 px-2">이미지</div>
             <div className="py-2 px-2">파일명</div>
             <div className="py-2 px-2">키워드</div>
             <div className="py-2 px-2">태그</div>
             <div className="py-2"></div>
-            <div className="flex items-center justify-center py-2" onClick={toggleSelectAll}>
-              <Checkbox checked={allFilteredSelected} onCheckedChange={() => toggleSelectAll()} />
-            </div>
           </div>
 
           {/* Virtualized rows */}
@@ -322,9 +328,7 @@ export function DcconTable({ entries, imageFiles, repo, onChange }: Props) {
                           compact={compact}
                           isMissingFile={!fileSet.has(entry.name)}
                           isSelected={selected.has(originalIndex)}
-                          isFocused={focusedIndex === originalIndex}
                           onToggleSelect={() => toggleSelect(originalIndex)}
-                          onFocus={() => handleRowClick(originalIndex)}
                           onChange={(updated) => updateEntry(originalIndex, updated)}
                           onDelete={() => deleteEntry(originalIndex)}
                           sortDisabled={!!isFiltering}
