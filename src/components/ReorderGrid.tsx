@@ -46,12 +46,14 @@ function GridItem({
     attributes,
     listeners,
     setNodeRef,
+    transform,
     isDragging,
   } = useSortable({ id, animateLayoutChanges: () => false });
 
   const style = isDragOverlay
     ? {}
     : {
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         opacity: isDragging ? 0.3 : 1,
       };
 
