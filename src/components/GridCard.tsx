@@ -10,6 +10,7 @@ interface Props {
   repo: RepoInfo;
   isSelected: boolean;
   hasWarning: boolean;
+  hiddenByGroupDrag?: boolean;
   onClick: (e: React.MouseEvent) => void;
   onRenameKeyword?: (value: string) => void;
   isDragOverlay?: boolean;
@@ -22,6 +23,7 @@ export function GridCard({
   repo,
   isSelected,
   hasWarning,
+  hiddenByGroupDrag,
   onClick,
   onRenameKeyword,
   isDragOverlay,
@@ -50,7 +52,8 @@ export function GridCard({
     : {
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         transition,
-        opacity: isDragging ? 0.3 : 1,
+        opacity: isDragging || hiddenByGroupDrag ? 0 : 1,
+        pointerEvents: hiddenByGroupDrag ? "none" as const : undefined,
       };
 
   const keyword = entry.keywords[0] || entry.name.replace(/\.\w+$/, "");

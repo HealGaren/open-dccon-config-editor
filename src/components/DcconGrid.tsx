@@ -287,6 +287,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
                     repo={repo}
                     isSelected={selected.has(idx)}
                     hasWarning={keywordIssues.has(idx)}
+                    hiddenByGroupDrag={draggingIndex !== null && selected.size > 1 && selected.has(idx) && idx !== draggingIndex}
                     onClick={(e) => handleClick(idx, e)}
                     onRenameKeyword={(v) => {
                       const kws = [...entry.keywords];
