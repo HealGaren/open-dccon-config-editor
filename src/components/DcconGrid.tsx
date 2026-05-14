@@ -23,7 +23,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 
-type FilterMode = "all" | "unmapped" | "missing";
+type FilterMode = "all" | "unmapped" | "missing" | "issues";
 type SelectMode = "single" | "multi";
 
 interface Props {
@@ -75,6 +75,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
   const filteredEntries = useMemo(() => {
     let result = entries.map((e, i) => ({ entry: e, idx: i }));
     if (filterMode === "missing") result = result.filter(({ entry }) => !fileSet.has(entry.name));
+    if (filterMode === "issues") result = result.filter(({ idx }) => keywordIssues.has(idx));
     if (filterTag) result = result.filter(({ entry }) => entry.tags.includes(filterTag));
     if (search) {
       const q = search.toLowerCase();
@@ -85,7 +86,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
       );
     }
     return result;
-  }, [entries, search, filterMode, filterTag, fileSet]);
+  }, [entries, search, filterMode, filterTag, fileSet, keywordIssues]);
 
   const ids = useMemo(() => filteredEntries.map(({ idx }) => `g-${idx}`), [filteredEntries]);
 
@@ -231,8 +232,13 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
         <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onSwitchToList}>리스트뷰</Button>
 
         {keywordIssues.size > 0 && (
-          <Badge variant="destructive" className="text-xs ml-auto">
-            키워드 문제 {keywordIssues.size}건
+          <Badge
+            variant={filterMode === "issues" ? "default" : "destructive"}
+            className="text-xs ml-auto cursor-pointer"
+            onClick={() => setFilterMode(filterMode === "issues" ? "all" : "issues")}
+            title={Array.from(new Set(Array.from(keywordIssues.values()).flat())).join(", ")}
+          >
+            {filterMode === "issues" ? "전체 보기" : `키워드 문제 ${keywordIssues.size}건`}
           </Badge>
         )}
       </div>
@@ -287,6 +293,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
                     repo={repo}
                     isSelected={selected.has(idx)}
                     hasWarning={keywordIssues.has(idx)}
+                    warningTexts={keywordIssues.get(idx)}
                     hiddenByGroupDrag={draggingIndex !== null && selected.size > 1 && selected.has(idx) && idx !== draggingIndex}
                     onClick={(e) => handleClick(idx, e)}
                     onRenameKeyword={(v) => {
