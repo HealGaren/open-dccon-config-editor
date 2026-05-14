@@ -340,6 +340,7 @@ export function DcconGrid({ entries, imageFiles, repo, onChange, onSwitchToList 
               selectedIndices={selected}
               allEntries={entries}
               onChange={onChange}
+              onDelete={() => { onChange(entries.filter((_, i) => !selected.has(i))); setSelected(new Set()); }}
               onClearSelection={() => setSelected(new Set())}
             />
           ) : null}

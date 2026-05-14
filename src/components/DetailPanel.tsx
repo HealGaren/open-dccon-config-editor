@@ -46,10 +46,11 @@ interface BatchProps {
   selectedIndices: Set<number>;
   allEntries: DcconEntry[];
   onChange: (entries: DcconEntry[]) => void;
+  onDelete: () => void;
   onClearSelection: () => void;
 }
 
-export function BatchDetail({ count, entries: _entries, selectedIndices, allEntries, onChange, onClearSelection }: BatchProps) {
+export function BatchDetail({ count, entries: _entries, selectedIndices, allEntries, onChange, onDelete, onClearSelection }: BatchProps) {
   const [batchTag, setBatchTag] = useState("");
 
   const tagCounts = new Map<string, number>();
@@ -85,6 +86,14 @@ export function BatchDetail({ count, entries: _entries, selectedIndices, allEntr
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm font-semibold text-primary shrink-0">{count}개 선택</span>
         <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={onClearSelection}>해제</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => { if (confirm(`선택된 ${count}개 항목을 삭제할까요?`)) onDelete(); }}
+        >
+          삭제
+        </Button>
         <div className="w-px h-5 bg-border shrink-0" />
         <Input
           placeholder="태그 추가 (Enter)"
